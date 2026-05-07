@@ -26,7 +26,7 @@ A Chrome/Edge extension for customizing WhatsApp Web with per-chat wallpapers, b
 2. Adjust the global theme controls in the popup.
 3. Choose an image or video wallpaper for the main chat area or sidebar.
 4. Click Apply Changes.
-5. For per-chat wallpapers, switch to the Per-Chat tab and set the wallpaper from the WhatsApp chat menu.
+5. For per-chat wallpapers, click the top 3 dots to acess the chat wallpaper section to edit per chat settings.
 
 ## Project Structure
 
