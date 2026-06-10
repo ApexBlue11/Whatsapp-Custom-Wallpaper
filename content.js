@@ -324,7 +324,8 @@ async function persistChatSettings(chatName, data) {
 async function deleteChatSettings(chatName) {
   const cs = chatSettings[chatName];
   if (cs?.wallpaperStorageKey) {
-    await chrome.storage.local.remove(cs.wallpaperStorageKey);
+    await idbDelete(cs.wallpaperStorageKey).catch(() => {});
+    await chrome.storage.local.remove(cs.wallpaperStorageKey).catch(() => {});
     revokeUrl(cs.wallpaperStorageKey);
   }
   delete chatSettings[chatName];
@@ -1190,28 +1191,30 @@ function openChatSettingsModal(chatName) {
     let finalWpStorageKey  = existing.wallpaperStorageKey  || null;
 
     if (pendingWpType === '__removed__') {
-      // User explicitly removed wallpaper
+      // User explicitly removed wallpaper — delete from IDB and legacy chrome.storage
       if (existing.wallpaperStorageKey) {
-        await chrome.storage.local.remove(existing.wallpaperStorageKey);
+        await idbDelete(existing.wallpaperStorageKey).catch(() => {});
+        await chrome.storage.local.remove(existing.wallpaperStorageKey).catch(() => {});
         revokeUrl(existing.wallpaperStorageKey);
       }
       finalWpType = null; finalWpData = null; finalWpStorageKey = null;
 
     } else if (pendingWpType === 'image') {
-      // Replace with image — clean up any old video key
+      // Replace with image — clean up any old video key from both stores
       if (existing.wallpaperStorageKey) {
-        await chrome.storage.local.remove(existing.wallpaperStorageKey);
+        await idbDelete(existing.wallpaperStorageKey).catch(() => {});
+        await chrome.storage.local.remove(existing.wallpaperStorageKey).catch(() => {});
         revokeUrl(existing.wallpaperStorageKey);
       }
       finalWpType = 'image'; finalWpData = pendingWpData; finalWpStorageKey = null;
 
     } else if (pendingWpType === 'video' && pendingWpFile) {
-      // New video upload — save as Uint8Array, reuse existing storage key if already a video
+      // New video upload — write to IDB (no size limit from content script context)
       const key = finalWpStorageKey || `wa_vid_chat_${genId()}`;
       try {
         const ab = await pendingWpFile.arrayBuffer();
-        await chrome.storage.local.set({ [key]: new Uint8Array(ab) });
-        revokeUrl(key); // revoke stale objectURL for this key (if any)
+        await idbSet(key, new Uint8Array(ab));
+        revokeUrl(key);
         finalWpType = 'video'; finalWpData = null; finalWpStorageKey = key;
       } catch (err) {
         showToast('Failed to save video — try a smaller file.', 'error');
