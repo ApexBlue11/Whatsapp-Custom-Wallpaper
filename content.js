@@ -19,8 +19,11 @@ const SEL = {
   leftPanel: '#pane-side',
   chatList: '[data-testid="chat-list"]',
   chatListItem: '[data-testid="cell-frame-container"]',
-  bubbleOut: '.message-out',
-  bubbleIn: '.message-in',
+  // Try multiple bubble selectors!
+  bubbleSelectors: [
+    '.message-out', '.message-in',
+    'div[data-testid="msg-container"]'
+  ],
   bubbleBg: '._amk6',
 };
 
@@ -315,23 +318,49 @@ function resolvedBubbleSettings(isOut) {
 }
 
 function findBubbleBgEl(bubbleEl) {
-  const known = bubbleEl.querySelector(SEL.bubbleBg);
-  if (known) return known;
-  for (const el of bubbleEl.querySelectorAll('div')) {
-    const bg = getComputedStyle(el).backgroundColor;
-    if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') return el;
+  console.log('[WA Themes] findBubbleBgEl starting for bubble:', bubbleEl);
+  // Try multiple known selectors in order of preference!
+  const possibleSelectors = [
+    '._amk6',
+    '._amkg',
+    '._amj3',
+    'div[role="row"]',
+    'div[role="gridcell"]',
+    'div'
+  ];
+  
+  for (const sel of possibleSelectors) {
+    const el = bubbleEl.querySelector(sel);
+    if (el) {
+      const bg = getComputedStyle(el).backgroundColor;
+      console.log(`[WA Themes] Checking selector ${sel} → el background color: ${bg}`);
+      if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
+        console.log('[WA Themes] Found bgEl using:', sel);
+        return el;
+      }
+    }
   }
+  console.warn('[WA Themes] Could NOT find bubbleBgEl for:', bubbleEl);
   return null;
 }
 
 function stampBubbleColour(bubbleEl) {
-  if (!globalSettings.enabled) return;
+  console.log('[WA Themes] stampBubbleColour called for:', bubbleEl);
+  if (!globalSettings.enabled) {
+    console.log('[WA Themes] stampBubbleColour skipped (extension disabled)');
+    return;
+  }
   const isOut = bubbleEl.classList.contains('message-out');
   const { colour, opacity, doBlur, blurPx } = resolvedBubbleSettings(isOut);
-  if (!colour) return;
+  console.log('[WA Themes] bubble settings:', { isOut, colour, opacity, doBlur, blurPx });
+  if (!colour) {
+    console.warn('[WA Themes] No colour provided, skipping');
+    return;
+  }
   const bgEl = findBubbleBgEl(bubbleEl);
   if (!bgEl) return;
   bgEl.style.setProperty('background-color', hexToRgba(colour, opacity / 100), 'important');
+  console.log('[WA Themes] Set background color on bgEl:', bgEl, 'to', hexToRgba(colour, opacity/100));
   if (doBlur) {
     bgEl.style.setProperty('backdrop-filter', `blur(${blurPx}px)`, 'important');
     bgEl.style.setProperty('-webkit-backdrop-filter', `blur(${blurPx}px)`, 'important');
@@ -342,31 +371,33 @@ function stampBubbleColour(bubbleEl) {
 }
 
 function stampAllVisibleBubbles() {
-  console.log('[WA Themes] Stamping all visible bubbles');
-  document.querySelectorAll('.message-out, .message-in').forEach(stampBubbleColour);
+  console.log('[WA Themes] Stamping all visible bubbles with selectors:', SEL.bubbleSelectors);
+  const selector = SEL.bubbleSelectors.join(',');
+  document.querySelectorAll(selector).forEach(stampBubbleColour);
 }
 
 function setupBubbleObserver() {
-  console.log('[WA Themes] Setting up bubble observer');
+  console.log('[WA Themes] Setting up bubble observer with selectors:', SEL.bubbleSelectors);
   if (bubbleObserver) {
     bubbleObserver.disconnect();
     bubbleObserver = null;
   }
   stampAllVisibleBubbles();
+  const selector = SEL.bubbleSelectors.join(',');
   bubbleObserver = new MutationObserver((mutations) => {
     for (const mut of mutations) {
       if (mut.type === 'childList') {
         for (const node of mut.addedNodes) {
           if (node.nodeType !== Node.ELEMENT_NODE) continue;
-          if (node.classList?.contains('message-out') || node.classList?.contains('message-in')) {
+          if (node.matches(selector)) {
             stampBubbleColour(node);
           } else {
-            node.querySelectorAll?.('.message-out, .message-in').forEach(stampBubbleColour);
+            node.querySelectorAll?.(selector).forEach(stampBubbleColour);
           }
         }
       }
       if (mut.type === 'attributes' && mut.attributeName === 'style') {
-        const bubble = mut.target.closest?.('.message-out, .message-in');
+        const bubble = mut.target.closest?.(selector);
         if (bubble) stampBubbleColour(bubble);
       }
     }
