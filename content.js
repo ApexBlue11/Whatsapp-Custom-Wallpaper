@@ -329,9 +329,78 @@ function resolvedBubbleSettings(isOut) {
   return { colour, opacity, doBlur, blurPx };
 }
 
+const BUBBLE_BG_SELECTORS = [
+  '._amk6',
+  '._amkg',
+  '._amj3',
+  '._1cop_',
+  '._1JnK5'
+];
+
+function bubbleDirection(bubbleEl) {
+  if (bubbleEl.classList.contains('message-out')) return 'out';
+  if (bubbleEl.classList.contains('message-in')) return 'in';
+
+  const container = bubbleEl.matches('[data-testid="msg-container"]')
+    ? bubbleEl
+    : bubbleEl.closest('[data-testid="msg-container"]');
+  const directionRoot = container || bubbleEl;
+
+  if (directionRoot.querySelector('[data-testid="tail-out"]')) return 'out';
+  if (directionRoot.querySelector('[data-testid="tail-in"]')) return 'in';
+
+  const panel = document.querySelector(SEL.chatPanel) || document.querySelector(SEL.main);
+  if (panel) {
+    const bubbleRect = directionRoot.getBoundingClientRect();
+    const panelRect = panel.getBoundingClientRect();
+    if (bubbleRect.width > 0 && panelRect.width > 0) {
+      const bubbleCenter = bubbleRect.left + (bubbleRect.width / 2);
+      const panelCenter = panelRect.left + (panelRect.width / 2);
+      const direction = bubbleCenter >= panelCenter ? 'out' : 'in';
+      console.log('[WA Themes] Bubble direction inferred from geometry:', {
+        direction,
+        bubbleCenter: Math.round(bubbleCenter),
+        panelCenter: Math.round(panelCenter),
+        bubbleEl: directionRoot
+      });
+      return direction;
+    }
+  }
+
+  return 'unknown';
+}
+
+function setImportantStyleIfChanged(el, prop, value) {
+  if (
+    el.style.getPropertyValue(prop) === value &&
+    el.style.getPropertyPriority(prop) === 'important'
+  ) {
+    return false;
+  }
+  el.style.setProperty(prop, value, 'important');
+  return true;
+}
+
+function removeStyleIfPresent(el, prop) {
+  if (!el.style.getPropertyValue(prop)) return false;
+  el.style.removeProperty(prop);
+  return true;
+}
+
 function findBubbleBgEl(bubbleEl) {
   console.log('[WA Themes] findBubbleBgEl starting for bubble:', bubbleEl);
   console.log('[WA Themes] bubbleEl innerHTML:', bubbleEl.innerHTML.slice(0, 500));
+
+  // Prefer known WhatsApp bubble-surface classes even when their native
+  // background is transparent after WA updates or wallpaper changes.
+  for (const sel of BUBBLE_BG_SELECTORS) {
+    const el = bubbleEl.querySelector(sel);
+    if (el) {
+      const bg = getComputedStyle(el).backgroundColor;
+      console.log(`[WA Themes] Found bgEl using known selector ${sel}; current background: ${bg}`, el);
+      return el;
+    }
+  }
   
   // Try multiple known selectors in order of preference!
   const possibleSelectors = [
@@ -366,25 +435,73 @@ function stampBubbleColour(bubbleEl) {
     console.log('[WA Themes] stampBubbleColour skipped (extension disabled)');
     return;
   }
-  const isOut = bubbleEl.classList.contains('message-out');
+  const direction = bubbleDirection(bubbleEl);
+  if (direction === 'unknown') {
+    console.warn('[WA Themes] Unknown bubble direction, skipping:', bubbleEl);
+    return;
+  }
+  const isOut = direction === 'out';
   const { colour, opacity, doBlur, blurPx } = resolvedBubbleSettings(isOut);
-  console.log('[WA Themes] bubble settings:', { isOut, colour, opacity, doBlur, blurPx });
+  console.log('[WA Themes] bubble settings:', { direction, isOut, colour, opacity, doBlur, blurPx });
   if (!colour) {
     console.warn('[WA Themes] No colour provided, skipping');
     return;
   }
   const bgEl = findBubbleBgEl(bubbleEl);
   if (!bgEl) return;
-  bgEl.style.setProperty('background-color', hexToRgba(colour, opacity / 100), 'important');
-  console.log('[WA Themes] Set background color on bgEl:', bgEl, 'to', hexToRgba(colour, opacity/100));
+  const rgba = hexToRgba(colour, opacity / 100);
+  const changedBg = setImportantStyleIfChanged(bgEl, 'background-color', rgba);
   if (doBlur) {
-    bgEl.style.setProperty('backdrop-filter', `blur(${blurPx}px)`, 'important');
-    bgEl.style.setProperty('-webkit-backdrop-filter', `blur(${blurPx}px)`, 'important');
+    const blurValue = `blur(${blurPx}px)`;
+    const changedBlur = setImportantStyleIfChanged(bgEl, 'backdrop-filter', blurValue);
+    const changedWebkitBlur = setImportantStyleIfChanged(bgEl, '-webkit-backdrop-filter', blurValue);
+    console.log('[WA Themes] Bubble style applied:', {
+      bgEl,
+      direction,
+      rgba,
+      changedBg,
+      changedBlur,
+      changedWebkitBlur
+    });
   } else {
-    bgEl.style.removeProperty('backdrop-filter');
-    bgEl.style.removeProperty('-webkit-backdrop-filter');
+    const removedBlur = removeStyleIfPresent(bgEl, 'backdrop-filter');
+    const removedWebkitBlur = removeStyleIfPresent(bgEl, '-webkit-backdrop-filter');
+    console.log('[WA Themes] Bubble style applied:', {
+      bgEl,
+      direction,
+      rgba,
+      changedBg,
+      removedBlur,
+      removedWebkitBlur
+    });
   }
 }
+
+window.waThemesDebugBubbles = function waThemesDebugBubbles(limit = 12) {
+  const selector = SEL.bubbleSelectors.join(',');
+  const bubbles = Array.from(document.querySelectorAll(selector)).slice(-limit);
+  const summary = bubbles.map((bubbleEl, index) => {
+    const direction = bubbleDirection(bubbleEl);
+    const isOut = direction === 'out';
+    const bgEl = findBubbleBgEl(bubbleEl);
+    const bgStyle = bgEl ? getComputedStyle(bgEl) : null;
+    const settings = direction === 'unknown' ? null : resolvedBubbleSettings(isOut);
+    return {
+      index,
+      direction,
+      bubbleClass: bubbleEl.className,
+      bgClass: bgEl?.className || null,
+      computedBackground: bgStyle?.backgroundColor || null,
+      inlineBackground: bgEl?.style.getPropertyValue('background-color') || null,
+      inlineBackgroundPriority: bgEl?.style.getPropertyPriority('background-color') || null,
+      text: bubbleEl.innerText?.trim().slice(0, 80) || '',
+      settings
+    };
+  });
+  console.table(summary);
+  console.log('[WA Themes] Bubble debug summary:', summary);
+  return summary;
+};
 
 function stampAllVisibleBubbles() {
   console.log('[WA Themes] Stamping all visible bubbles with selectors:', SEL.bubbleSelectors);
