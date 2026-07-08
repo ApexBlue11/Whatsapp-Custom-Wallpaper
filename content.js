@@ -176,7 +176,8 @@ async function loadStorage() {
     chrome.storage.local.get(['globalSettings', 'chatWallpapers'], (result) => {
       globalSettings = Object.assign(getDefaults(), result.globalSettings || {});
       chatSettings = result.chatWallpapers || {};
-      console.log('[WA Themes] Storage loaded:', {
+      console.log('[WA Themes] FULL globalSettings loaded:', globalSettings);
+      console.log('[WA Themes] Storage loaded summary:', {
         hasGlobalSettings: !!result.globalSettings,
         hasChatSettings: !!result.chatWallpapers,
         globalWallpaperType: globalSettings.globalWallpaper?.type,
@@ -307,6 +308,7 @@ function applyGlobalCSS() {
 function resolvedBubbleSettings(isOut) {
   const cs = currentChatName ? chatSettings[currentChatName] : null;
   const gs = globalSettings;
+  
   const colour = (isOut ? cs?.outBubbleColor : cs?.inBubbleColor)
     ?? (isOut ? gs.outBubbleColor : gs.inBubbleColor);
   const opacity = (isOut ? cs?.outBubbleOpacity : cs?.inBubbleOpacity)
@@ -314,16 +316,30 @@ function resolvedBubbleSettings(isOut) {
   const doBlur = (isOut ? cs?.blurOutBubble : cs?.blurInBubble)
     ?? (isOut ? gs.blurOutBubble : gs.blurInBubble) ?? false;
   const blurPx = cs?.bubbleBlurIntensity ?? gs.blurIntensity ?? 8;
+  
+  console.log(`[WA Themes] resolvedBubbleSettings (isOut=${isOut})`, {
+    cs,
+    gs,
+    colour,
+    opacity,
+    doBlur,
+    blurPx
+  });
+  
   return { colour, opacity, doBlur, blurPx };
 }
 
 function findBubbleBgEl(bubbleEl) {
   console.log('[WA Themes] findBubbleBgEl starting for bubble:', bubbleEl);
+  console.log('[WA Themes] bubbleEl innerHTML:', bubbleEl.innerHTML.slice(0, 500));
+  
   // Try multiple known selectors in order of preference!
   const possibleSelectors = [
     '._amk6',
     '._amkg',
     '._amj3',
+    '._1cop_', // another WhatsApp class
+    '._1JnK5', // another one
     'div[role="row"]',
     'div[role="gridcell"]',
     'div'
@@ -333,7 +349,7 @@ function findBubbleBgEl(bubbleEl) {
     const el = bubbleEl.querySelector(sel);
     if (el) {
       const bg = getComputedStyle(el).backgroundColor;
-      console.log(`[WA Themes] Checking selector ${sel} → el background color: ${bg}`);
+      console.log(`[WA Themes] Checking selector ${sel} → el background color: ${bg}`, el);
       if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
         console.log('[WA Themes] Found bgEl using:', sel);
         return el;

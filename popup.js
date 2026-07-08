@@ -189,7 +189,7 @@ function readSettingsFromUI() {
     sidebarWallpaper = { ...pendingSidebarWp };
   }
 
-  return {
+  const uiSettings = {
     enabled: g("enabled").checked,
     outBubbleColor: getVal("outBubbleColor"),
     outBubbleOpacity: parseInt(getVal("outBubbleOpacity")),
@@ -221,6 +221,10 @@ function readSettingsFromUI() {
     navStripOpacity: parseInt(getVal("navStripOpacity")),
     navStripBlur: parseInt(getVal("navStripBlur")),
   };
+  
+  console.log("[WA Themes] Read settings from UI:", uiSettings);
+  
+  return uiSettings;
 }
 
 function setupTabs() {
