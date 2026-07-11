@@ -3,7 +3,7 @@
 > **Custom wallpapers and styling for WhatsApp Web.**
 
 [![Download ZIP](https://img.shields.io/badge/Download-ZIP-orange?style=for-the-badge&logo=github)](https://github.com/ApexBlue11/WhatsApp-Themes-Extension/archive/refs/heads/main.zip)
-[![Download Installer](https://img.shields.io/badge/Download-Installer.bat-blue?style=for-the-badge&logo=windows)](https://github.com/ApexBlue11/WhatsApp-Themes-Extension/raw/main/install.bat)
+[![Download Installer](https://img.shields.io/badge/Download-Installer.bat-blue?style=for-the-badge&logo=windows)](https://github.com/ApexBlue11/WhatsApp-Themes-Extension/raw/main/install.bat?download=)
 
 ## ⚡ Windows Easy Install (Anti-Virus Safe)
 
